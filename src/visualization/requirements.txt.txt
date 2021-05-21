@@ -1,0 +1,9 @@
+streamlit
+pandas
+numpy
+cv2
+scipy
+random
+json
+PIL
+matplotlib
