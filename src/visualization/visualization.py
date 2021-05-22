@@ -82,35 +82,6 @@ def run_the_app(session_state):
     
     session_state.sync()
 
-def display_objects(object_type,image_list,selected_image,label_col,):
-    
-    disp_image = []
-    
-    if selected_image=='Random':
-        disp_list = image_list[:-1]
-        random.shuffle(disp_list)
-        disp_list = disp_list[:4]
-
-    else:
-        disp_list=[image_list[selected_image]]
-        
-    for image in disp_list:
-        with open(os.path.join(anno_source,object_type,'bbox',image+'.json')) as fp:
-            annotation_dict = json.load(fp)
-        temp_image = cv2.imread(img_source+image+'.jpg')
-        temp_image = cv2.cvtColor(temp_image, cv2.COLOR_BGR2RGB)
-        for idx in annotation_dict.keys():
-            contours, _ = cv2.findContours(np.uint8(np.matrix(annotation_dict[idx]['mask'])),
-                                       cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-
-            temp_image = cv2.drawContours(temp_image, contours, -1,label_col.tolist() , 1)
-        disp_image.append(temp_image)
-     
-    st.subheader('Ground Truth')
-    
-    for idx,img in enumerate(disp_image):
-        st.image(img,caption=disp_list[idx])
-
 def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox_disp,obbox_disp):
     
     font                   = cv2.FONT_HERSHEY_PLAIN
@@ -149,81 +120,103 @@ def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox
     disp_image = []
     disp_list=[image_list[selected_image]]
     st.write(str(disp_list[0]))
-    f = open('part_label.json',)
+    f = open(os.path.join(path,'src','visualization','part_label.json'),)
     part_labels = json.load(f)
     part_labels = part_labels[object_type]
     
     image = disp_list[0]
     with open(os.path.join(anno_source,object_type,'bbox',image+'.json')) as fp:
         annotation_dict = json.load(fp)
-    raw_image = cv2.imread(os.path.join(img_source,image+'.jpg'))
-    raw_image = cv2.cvtColor(raw_image, cv2.COLOR_BGR2RGB)
-    fig, axes = plt.subplots(1,n, figsize = (12,4))
-    ob_image = raw_image.copy()
-    part_image = raw_image.copy()
-    obb_image = raw_image.copy()
-    t=0
-    im_x_min,im_y_min,im_x_max,im_y_max = raw_image.shape[0],raw_image.shape[1],0,0
+        
     num = len(annotation_dict.keys())
     object_idx = st.radio('Select the object you want to focus', list(range(num)),0)
     idx = list(annotation_dict.keys())[object_idx]
     im_x_min,im_y_min,im_x_max,im_y_max =annotation_dict[idx]['bbox']
-
-    t=-1
-
-    part_dict = annotation_dict[idx]['parts']
-    if part_dict and part_disp:
-        t+=1
-        axes[t].imshow(part_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1], interpolation='none')
-        overlay = np.zeros(part_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1].shape)
-        for part in part_dict.keys():
-            mask = np.repeat(np.expand_dims(np.matrix(part_dict[part]['mask']),axis=-1),3,axis=2)
-            mask = np.uint(mask*np.expand_dims(np.matrix(colors[part_labels[part]-1]),axis=0))
-            overlay+= mask[im_x_min:im_x_max+1,im_y_min:im_y_max+1]
-            
-              
-        axes[t].imshow(overlay,interpolation='none',alpha=0.2)
-
+    raw_image = cv2.imread(os.path.join(img_source,image+'.jpg'))
+    raw_image = cv2.cvtColor(raw_image, cv2.COLOR_BGR2RGB)
+    ob_image = raw_image.copy()
+    if n >0:
+        fig, axes = plt.subplots(1,n, figsize = (12,4))
+        part_image = raw_image.copy()
+        obb_image = raw_image.copy()
         
+        t=-1
 
-    if part_dict and obbox_disp:
-        t+=1
-        for part in part_dict.keys():
-            contours,_ = cv2.findContours(np.uint8(np.matrix(part_dict[part]['mask'])),
-                       cv2.RETR_EXTERNAL , cv2.CHAIN_APPROX_NONE)
+        part_dict = annotation_dict[idx]['parts']
+        if part_dict and part_disp:
+            t+=1
+            if n>1:
+                axes[t].imshow(part_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1], interpolation='none')
+            else:
+                axes.imshow(part_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1], interpolation='none')
+            
+            overlay = np.zeros(part_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1].shape)
+            for part in part_dict.keys():
+                mask = np.repeat(np.expand_dims(np.matrix(part_dict[part]['mask']),axis=-1),3,axis=2)
+                mask = np.uint(mask*np.expand_dims(np.matrix(colors[part_labels[part]-1]),axis=0))
+                overlay+= mask[im_x_min:im_x_max+1,im_y_min:im_y_max+1]
 
-            for c in contours:
-                rect = cv2.minAreaRect(c)
-                box = cv2.boxPoints(rect)
-                box = np.int0(box)
-                obb_image = cv2.drawContours(obb_image, [box],0,colors[part_labels[part]-1],1)
-        axes[t].imshow(obb_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1])
-
-    if part_dict and bbox_disp:
-        bb_image = raw_image.copy()
-        t +=1
-        axes[t].imshow(raw_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1])
-        plt.axis('off')  
-
-        for part in part_dict.keys():
-
-            x_min,y_min,x_max,y_max =part_dict[part]['bbox']
-            rect = patches.Rectangle((y_min-im_y_min,x_min-im_x_min),y_max-y_min,x_max-x_min,
-                                     linewidth=1,edgecolor=colors[part_labels[part]-1]/255,facecolor='none')
-
-            axes[t].add_patch(rect)
+            if n>1:
+                axes[t].imshow(overlay,interpolation='none',alpha=0.2)
+            else:
+                axes.imshow(overlay,interpolation='none',alpha=0.2)
+                
     
-    st.pyplot(fig)
+
+
+        if part_dict and obbox_disp:
+            t+=1
+            for part in part_dict.keys():
+                contours,_ = cv2.findContours(np.uint8(np.matrix(part_dict[part]['mask'])),
+                           cv2.RETR_EXTERNAL , cv2.CHAIN_APPROX_NONE)
+
+                for c in contours:
+                    rect = cv2.minAreaRect(c)
+                    box = cv2.boxPoints(rect)
+                    box = np.int0(box)
+                    obb_image = cv2.drawContours(obb_image, [box],0,colors[part_labels[part]-1],1)
+            if n>1:
+                axes[t].imshow(obb_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1])
+            else:
+                axes.imshow(obb_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1])
+                
+        if part_dict and bbox_disp:
+            bb_image = raw_image.copy()
+            t +=1
+            if n > 1:
+                axes[t].imshow(raw_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1])
+            else:
+                axes.imshow(raw_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1])
+                
+            plt.axis('off')  
+
+            for part in part_dict.keys():
+
+                x_min,y_min,x_max,y_max =part_dict[part]['bbox']
+                rect = patches.Rectangle((y_min-im_y_min,x_min-im_x_min),y_max-y_min,x_max-x_min,
+                                         linewidth=1,edgecolor=colors[part_labels[part]-1]/255,facecolor='none')
+
+                if n>1:
+                    axes[t].add_patch(rect)
+                else:
+                    axes.add_patch(rect)
+                    
+                    
+        st.pyplot(fig)
     
-    fig2, axes2 = plt.subplots(1,1)
+    fig2, axes2 = plt.subplots(1,1, figsize = (4,4))
     contours, _ = cv2.findContours(np.uint8(np.matrix(annotation_dict[idx]['mask'])),
                                cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
     ob_image = cv2.drawContours(ob_image, contours, -1,label_col.tolist() , 2)
     
-    axes2.imshow(ob_image)
-    axes2.axis('off')  
-     
+    if n>0:
+        axes2.imshow(ob_image)
+        axes2.axis('off')  
+    else:
+        plt.imshow(ob_image)
+        plt.axis('off') 
+    
     st.pyplot(fig2)
      
     st.subheader('Ground Truth')
@@ -233,6 +226,6 @@ if __name__ == "__main__":
     
     curr_path = os.getcwd()
     path = Path(curr_path)
-    anno_source = os.path.join(path.parent,'PASCAL-VOC','xybb-objects')
-    img_source = os.path.join(path.parent,'PASCAL-VOC','scene')
+    anno_source = os.path.join(path,'src','PASCAL-VOC','xybb-objects')
+    img_source = os.path.join(path,'src','PASCAL-VOC','scene')
     main()
