@@ -72,7 +72,7 @@ def run_the_app(session_state):
         else:
             session_state.page_number -= 1
     
-    selected_image = st.slider('Select image index',0,len(image_list),session_state.page_number)
+    selected_image = st.slider("Select image index",0,len(image_list),session_state.page_number)
     session_state.page_number = selected_image
         
     display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox_disp,obbox_disp)
@@ -150,7 +150,7 @@ def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox
             overlay = np.uint(np.zeros(part_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1].shape,'int'))
             for part in part_dict.keys():
                 mask = np.repeat(np.expand_dims(np.matrix(part_dict[part]['mask']),axis=-1),3,axis=2)
-                mask = np.uint(mask*np.expand_dims(np.matrix(colors[part_labels[part]-1]).astype('int'),axis=0))
+                mask = np.uint(mask*np.expand_dims(np.matrix(colors[part_labels[part]-1]).astype(int),axis=0))
                 overlay+= mask[im_x_min:im_x_max+1,im_y_min:im_y_max+1]
                 
 
