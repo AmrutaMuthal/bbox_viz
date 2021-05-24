@@ -44,9 +44,6 @@ def run_the_app(session_state):
     image_list = os.listdir(os.path.join(anno_source,object_type,'bbox'))
     image_list = [name.split('.')[0] for name in image_list]
 
-    image_list = np.append(image_list,['Random'])
-    selected_image = st.sidebar.selectbox("Select image", image_list, 1)
-    
     n_labels = len(labels)
     diff = int(360/(n_labels+2))
     colours = np.arange(0,360,diff)
@@ -207,6 +204,29 @@ def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox
                     
                     
         st.pyplot(fig)
+        
+        l = min(6,len(part_labels))
+        b = int(np.ceil(len(part_labels)/6))
+        label_matrix = np.zeros((b,l)).astype('str')
+        labels = list(part_labels.keys())
+        for i in range(b):
+            cols = st.beta_columns(l)
+            for j in range(l):
+                try:
+                    label_matrix[i][j] = labels[i*6+j]
+                    #cols[j].write(labels[i*6+j])
+                except:
+                    label_matrix[i][j] = ""
+
+        
+        def rgb_to_hex(rgb):
+            return '%02x%02x%02x' % rgb
+        
+        label_df = pd.DataFrame(label_matrix)
+        label_df = label_df.style.applymap(lambda x: ('background-color : #'
+                                                     +rgb_to_hex(tuple(list(colors[part_labels[x]-1].astype('int'))))))
+        st.dataframe(label_df)
+        st.subheader("Part Legend")   
     
     fig2, axes2 = plt.subplots(1,1, figsize = (4,4))
     contours, _ = cv2.findContours(np.uint8(np.matrix(annotation_dict[idx]['mask'])),
