@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import matplotlib.patches as patches
 import SessionState
+import collections
 
 def main():
     # Render the readme as markdown using st.markdown.
@@ -109,7 +110,8 @@ def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox
           (1, 0.388, 0.278),
           (0.251, 0.878, 0.816),
           (0.933, 0.51, 0.933),
-          (0.961, 0.871, 0.702)]
+          (0.961, 0.871, 0.702),
+          (0,     0,     0)]
     colors = (np.asarray(colors)*255)
 
     n = sum([part_disp,bbox_disp,obbox_disp])
@@ -120,6 +122,7 @@ def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox
     f = open(os.path.join(path,'src','visualization','part_label.json'),)
     part_labels = json.load(f)
     part_labels = part_labels[object_type]
+    part_labels[""] = 24
     
     image = disp_list[0]
     with open(os.path.join(anno_source,object_type,'bbox',image+'.json')) as fp:
@@ -210,7 +213,6 @@ def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox
         label_matrix = np.zeros((b,l)).astype('str')
         labels = list(part_labels.keys())
         for i in range(b):
-            cols = st.beta_columns(l)
             for j in range(l):
                 try:
                     label_matrix[i][j] = labels[i*6+j]
@@ -223,6 +225,7 @@ def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox
             return '%02x%02x%02x' % rgb
         
         label_df = pd.DataFrame(label_matrix)
+        st.dataframe(label_df)
         label_df = label_df.style.applymap(lambda x: ('background-color : #'
                                                      +rgb_to_hex(tuple(list(colors[part_labels[x]-1].astype(int))))))
         st.dataframe(label_df)
