@@ -225,7 +225,6 @@ def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox
             return '%02x%02x%02x' % rgb
         
         label_df = pd.DataFrame(label_matrix)
-        st.dataframe(label_df)
         label_df = label_df.style.applymap(lambda x: ('background-color : #'
                                                      +rgb_to_hex(tuple(list(colors[part_labels[x]-1].astype(int))))))
         st.dataframe(label_df)
