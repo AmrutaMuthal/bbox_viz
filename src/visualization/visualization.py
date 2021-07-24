@@ -13,6 +13,7 @@ from matplotlib.patches import Rectangle
 import matplotlib.patches as patches
 import SessionState
 import collections
+import networkx as nx
 
 def main():
     # Render the readme as markdown using st.markdown.
@@ -80,6 +81,23 @@ def run_the_app(session_state):
     
     session_state.sync()
 
+def get_adjacency(parts,tree,object_name):
+    
+    l = len(parts)
+    adj = np.zeros((l,l), dtype=np.float32)
+    for j in range(l):
+        adj[j][j] = 1
+        if parts[j][0] == 1:
+
+            for y in tree[object_name][str(j)]:
+                if parts[y][0] == 1:
+                    adj[j][y] = 1
+                    adj[y][j] = 1
+    parts_present = np.where(parts[:,0]==1)
+    adj = adj[parts_present]
+    adj = np.squeeze(adj[:,parts_present])
+    return adj
+
 def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox_disp,obbox_disp):
     
     font                   = cv2.FONT_HERSHEY_PLAIN
@@ -120,6 +138,8 @@ def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox
     disp_list=[image_list[selected_image]]
     st.write(str(disp_list[0]))
     f = open(os.path.join(path,'src','visualization','part_label.json'),)
+    with open(os.path.join(path,'src','visualization','tree.json'),) as fp:
+        tree = json.load(fp)
     part_labels = json.load(f)
     part_labels = part_labels[object_type]
     part_labels[""] = 24
@@ -168,25 +188,40 @@ def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox
 
         if part_dict and obbox_disp:
             t+=1
+            part_centers = np.zeros((24,3))
             for part in part_dict.keys():
                 contours,_ = cv2.findContours(np.uint8(np.matrix(part_dict[part]['mask'])),
-                           cv2.RETR_EXTERNAL , cv2.CHAIN_APPROX_NONE)
+                    cv2.RETR_EXTERNAL , cv2.CHAIN_APPROX_NONE)
 
                 for c in contours:
                     rect = cv2.minAreaRect(c)
+                    center,side,angle = rect
+                    cx,cy = center
+                    part_centers[part_labels[part]-1]= [1,cx,cy]
                     box = cv2.boxPoints(rect)
                     box = np.int0(box)
                     obb_image = cv2.drawContours(obb_image, [box],0,colors[part_labels[part]-1])
+            
+            
+            adj_mat = get_adjacency(part_centers,tree,object_type)
+            G = nx.from_numpy_matrix(adj_mat)
+            part_centers = part_centers[np.where(part_centers[:,0]==1)]
             if n>1:
                 axes[t].imshow(obb_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1])
-                axes[t].axis('off')  
+                nx.draw(G, [(x-im_y_min,y-im_x_min) for _,x,y in part_centers],width=2,ax=axes[t],edge_color='r',node_size=2)
+                axes[t].set_axis_off()  
+                axes[t].axis('equal')
             else:
                 axes.imshow(obb_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1])
-                axes.axis('off')  
+                nx.draw(G, [(x-im_y_min,y-im_x_min) for _,x,y in part_centers],width=2,ax=axes[t],edge_color='r',node_size=2)
+                axes.set_axis_off() 
+                axes.axis('equal')
             
         if part_dict and bbox_disp:
             bb_image = raw_image.copy()
             t +=1
+            part_centers = np.zeros((24,3))
+            
             if n > 1:
                 axes[t].imshow(raw_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1])
                 axes[t].axis('off')
@@ -197,6 +232,7 @@ def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox
             for part in part_dict.keys():
 
                 x_min,y_min,x_max,y_max =part_dict[part]['bbox']
+                part_centers[part_labels[part]-1]= [1,(x_min+x_max)/2,(y_min+y_max)/2]
                 rect = patches.Rectangle((y_min-im_y_min,x_min-im_x_min),y_max-y_min,x_max-x_min,
                                          linewidth=1,edgecolor=colors[part_labels[part]-1]/255,facecolor='none')
 
@@ -205,7 +241,19 @@ def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox
                 else:
                     axes.add_patch(rect)
                     
-                    
+            adj_mat = get_adjacency(part_centers,tree,object_type)
+            G = nx.from_numpy_matrix(adj_mat)
+            part_centers = part_centers[np.where(part_centers[:,0]==1)]
+            
+            if n>1:
+                nx.draw(G, [(y-im_y_min,x-im_x_min) for _,x,y in part_centers],width=2,ax=axes[t],edge_color='r',node_size=5)
+                axes[t].set_axis_off()  
+                axes[t].axis('equal')
+            else:
+                nx.draw(G, [(y-im_y_min,x-im_x_min) for _,x,y in part_centers],width=2,ax=axes[t],edge_color='r',node_size=5)
+                axes.set_axis_off() 
+                axes.axis('equal')
+            
         st.pyplot(fig)
         
         l = min(6,len(part_labels))
@@ -216,7 +264,7 @@ def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox
             for j in range(l):
                 try:
                     label_matrix[i][j] = labels[i*6+j]
-                    #cols[j].write(labels[i*6+j])
+                    
                 except:
                     label_matrix[i][j] = ""
 
