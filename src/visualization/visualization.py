@@ -76,8 +76,8 @@ def run_the_app(session_state):
     
     selected_image = st.slider("Select image index",0,len(image_list),session_state.page_number)
     session_state.page_number = selected_image
-        
-    display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox_disp,obbox_disp)
+    graph = st.sidebar.checkbox("Display Adjacency Graph")    
+    display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox_disp,obbox_disp,graph)
     
     session_state.sync()
 
@@ -98,7 +98,7 @@ def get_adjacency(parts,tree,object_name):
     adj = np.squeeze(adj[:,parts_present])
     return adj
 
-def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox_disp,obbox_disp):
+def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox_disp,obbox_disp,graph):
     
     font                   = cv2.FONT_HERSHEY_PLAIN
     fontScale              = 0.8
@@ -208,12 +208,16 @@ def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox
             part_centers = part_centers[np.where(part_centers[:,0]==1)]
             if n>1:
                 axes[t].imshow(obb_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1])
-                nx.draw(G, [(x-im_y_min,y-im_x_min) for _,x,y in part_centers],width=2,ax=axes[t],edge_color='r',node_size=2)
+                if graph:
+                    nx.draw(G, [(x-im_y_min,y-im_x_min) for _,x,y in part_centers],
+                            width=2,ax=axes[t],edge_color='r',node_size=2)
                 axes[t].set_axis_off()  
                 axes[t].axis('equal')
             else:
                 axes.imshow(obb_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1])
-                nx.draw(G, [(x-im_y_min,y-im_x_min) for _,x,y in part_centers],width=2,ax=axes[t],edge_color='r',node_size=2)
+                if graph:
+                    nx.draw(G, [(x-im_y_min,y-im_x_min) for _,x,y in part_centers],
+                            width=2,ax=axes[t],edge_color='r',node_size=2)
                 axes.set_axis_off() 
                 axes.axis('equal')
             
@@ -240,19 +244,21 @@ def display_multi(object_type,image_list,selected_image,label_col,part_disp,bbox
                     axes[t].add_patch(rect)
                 else:
                     axes.add_patch(rect)
-                    
-            adj_mat = get_adjacency(part_centers,tree,object_type)
-            G = nx.from_numpy_matrix(adj_mat)
-            part_centers = part_centers[np.where(part_centers[:,0]==1)]
-            
-            if n>1:
-                nx.draw(G, [(y-im_y_min,x-im_x_min) for _,x,y in part_centers],width=2,ax=axes[t],edge_color='r',node_size=5)
-                axes[t].set_axis_off()  
-                axes[t].axis('equal')
-            else:
-                nx.draw(G, [(y-im_y_min,x-im_x_min) for _,x,y in part_centers],width=2,ax=axes[t],edge_color='r',node_size=5)
-                axes.set_axis_off() 
-                axes.axis('equal')
+            if graph:        
+                adj_mat = get_adjacency(part_centers,tree,object_type)
+                G = nx.from_numpy_matrix(adj_mat)
+                part_centers = part_centers[np.where(part_centers[:,0]==1)]
+
+                if n>1:
+                    nx.draw(G, [(y-im_y_min,x-im_x_min) for _,x,y in part_centers],
+                            width=2,ax=axes[t],edge_color='r',node_size=5)
+                    axes[t].set_axis_off()  
+                    axes[t].axis('equal')
+                else:
+                    nx.draw(G, [(y-im_y_min,x-im_x_min) for _,x,y in part_centers],
+                            width=2,ax=axes[t],edge_color='r',node_size=5)
+                    axes.set_axis_off() 
+                    axes.axis('equal')
             
         st.pyplot(fig)
         
