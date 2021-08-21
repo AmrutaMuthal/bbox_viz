@@ -237,6 +237,7 @@ def show_bbox_data(session_state,selected_image,label_col,colors):
         tree = json.load(fp)
     part_labels = json.load(f)
     part_labels = part_labels[session_state.object_type]
+    labels = list(part_labels.keys())
     part_labels[""] = 24
     
     
@@ -258,10 +259,14 @@ def show_bbox_data(session_state,selected_image,label_col,colors):
     if session_state.gt_overlay:
         alpha =0.2
         graph.add_trace(px.imshow(part_image[im_x_min:im_x_max+1,im_y_min:im_y_max+1]).data[0],row=1,col=2)
+    
+    else:
+        graph.add_trace(px.imshow(np.zeros((im_x_max-im_x_min,im_y_max-im_y_min,3))).data[0],row=1,col=2)
+        
         
     
     part_dict = annotation_dict['parts']
-     
+    
     if part_dict and session_state.bbox_disp:
         bb_image = raw_image.copy()
         part_centers = np.zeros((24,3))
@@ -293,7 +298,7 @@ def show_bbox_data(session_state,selected_image,label_col,colors):
             hoverinfo='text',
             text = parts_present,
             marker=dict(
-                showscale=True,
+                showscale=False,
                 reversescale=True,
                 # colorscale='YlreGnBu',
                 color=['red']*len(node_x),
@@ -367,7 +372,7 @@ def show_bbox_data(session_state,selected_image,label_col,colors):
             hoverinfo='text',
             text = parts_present,
             marker=dict(
-                showscale=True,
+                showscale=False,
                 reversescale=True,
                 color=['red']*len(node_x),
                 size=10,
@@ -382,7 +387,7 @@ def show_bbox_data(session_state,selected_image,label_col,colors):
         l = min(6,len(part_labels))
         b = int(np.ceil(len(part_labels)/6))
         label_matrix = np.zeros((b,l)).astype('str')
-        labels = list(part_labels.keys())
+        
         for i in range(b):
             for j in range(l):
                 try:
@@ -396,10 +401,11 @@ def show_bbox_data(session_state,selected_image,label_col,colors):
         label_df = label_df.style.applymap(lambda x: ('background-color : #'
                                                      +rgb_to_hex(tuple(list(colors[part_labels[x]-1].astype(int))))))
     
+    
     graph.update_layout(
         showlegend = False,
         width = 500,
-        height = 500,
+        height =  500,
         plot_bgcolor='rgb(0,0,0)'
         )
     graph.update_xaxes(visible=False)
